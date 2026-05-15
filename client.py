@@ -31,3 +31,23 @@ def display_keys(own_public_key, server_public_key):
     print("=" * 50)
     print(get_public_key_info(server_public_key))
     print("=" * 50 + "\n")
+
+def receive_messages(client_socket, private_key):
+    while True:
+        try:
+            encrypted_msg = client_socket.recv(BUFFER_SIZE)
+            if not encrypted_msg:
+                print("\n[DISCONNECTED] Server closed the connection.")
+                break
+
+            message = decrypt_message(private_key, encrypted_msg)
+            print(f"\n{message}")
+            print("Enter message: ", end="", flush=True)
+
+        except ConnectionResetError:
+            print("\n[ERROR] Connection to server was lost.")
+            break
+        except ValueError as e:
+            print(f"\n[ERROR] Failed to decrypt message: {e}")
+        except OSError:
+            break
