@@ -194,4 +194,4 @@ Ky projekt përdor RSA asymmetric encryption:
 Toska Brovina,
 Ubejd Shahini,
 Vesa Braina,
-Valon Hajredini, 
+Valon Hajredini
