@@ -51,3 +51,17 @@ def receive_messages(client_socket, private_key):
             print(f"\n[ERROR] Failed to decrypt message: {e}")
         except OSError:
             break
+
+
+def start_client():
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    try:
+        client_socket.connect((HOST, PORT))
+    except ConnectionRefusedError:
+        print(f"[ERROR] Could not connect to server at {HOST}:{PORT}.")
+        sys.exit(1)
+
+    print(f"Connected to server at {HOST}:{PORT}. Exchanging public keys...")
+
+    private_key, public_key = generate_keys()
