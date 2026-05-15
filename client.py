@@ -20,3 +20,14 @@ def display_help():
     print("=" * 50)
     print("  Type any other text to send an encrypted message.")
     print("=" * 50 + "\n")
+
+def display_keys(own_public_key, server_public_key):
+    print("\n" + "=" * 50)
+    print("  Your Public Key:")
+    print("=" * 50)
+    print(get_public_key_info(own_public_key))
+    print("=" * 50)
+    print("  Server's Public Key:")
+    print("=" * 50)
+    print(get_public_key_info(server_public_key))
+    print("=" * 50 + "\n")
