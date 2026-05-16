@@ -3,11 +3,12 @@ import threading
 import sys
 from rsa_utils import (
     generate_keys, serialize_public_key, load_public_key,
-    encrypt_message, decrypt_message, get_public_key_info
+    encrypt_message, decrypt_message, get_public_key_info,
+    get_max_plaintext_size
 )
 
 
-from config import HOST, PORT, BUFFER_SIZE
+from config import HOST, PORT, BUFFER_SIZE, validate_config
 
 
 def display_help():
@@ -32,6 +33,11 @@ def display_keys(own_public_key, server_public_key):
     print(get_public_key_info(server_public_key))
     print("=" * 50 + "\n")
 
+
+def display_connection_info(username, host, port):
+    """Print a compact session summary after successful login."""
+    print(f"[SESSION] User '{username}' connected to {host}:{port}")
+
 def receive_messages(client_socket, private_key):
     while True:
         try:
@@ -54,7 +60,10 @@ def receive_messages(client_socket, private_key):
 
 
 def start_client():
+    validate_config()
+
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    max_plaintext_size = get_max_plaintext_size()
 
     try:
         client_socket.connect((HOST, PORT))
@@ -63,6 +72,7 @@ def start_client():
         sys.exit(1)
 
     print(f"Connected to server at {HOST}:{PORT}. Exchanging public keys...")
+    print("Tip: Use /help for commands, /keys to inspect public keys, /exit to quit.")
 
     private_key, public_key = generate_keys()
 
@@ -83,6 +93,7 @@ def start_client():
         client_socket.send(encrypt_message(server_public_key, username))
 
         print(f"\nWelcome, {username}!")
+        display_connection_info(username, HOST, PORT)
         display_help()
 
         recv_thread = threading.Thread(
@@ -105,6 +116,13 @@ def start_client():
                 display_keys(public_key, server_public_key)
                 continue
             elif msg.strip() == "":
+                continue
+
+            if len(msg.encode("utf-8")) > max_plaintext_size:
+                print(
+                    f"[ERROR] Message too long ({len(msg.encode('utf-8'))} bytes). "
+                    f"Max is {max_plaintext_size} bytes for RSA-2048 OAEP."
+                )
                 continue
 
             try:
