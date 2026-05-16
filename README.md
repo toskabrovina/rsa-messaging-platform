@@ -60,12 +60,14 @@ Përmban funksionet RSA:
 - Enkriptimin
 - Dekriptimin
 - Serializimin e public keys
+- Llogaritjen e kufirit praktik të plaintext për RSA OAEP (`get_max_plaintext_size`)
 
 ### config.py
 Përmban konfigurimet:
 - Host address
 - Port
 - Buffer size
+- Utility helpers për validim dhe info të konfigurimit
 
 ### requirements.txt
 Përmban bibliotekat e nevojshme Python.
@@ -187,6 +189,23 @@ Ky projekt përdor RSA asymmetric encryption:
 - Public keys përdoren për enkriptim.
 - Private keys përdoren për dekriptim.
 - Mesazhet nuk mund të lexohen pa private key përkatës.
+
+---
+
+## Kufizime të Njohura
+
+- RSA-2048 me OAEP ka kufi praktik për madhësinë e mesazhit (afërsisht nën 190 bytes për një enkriptim).
+- Ky projekt është i orientuar për demonstrim/arsim dhe rrjet lokal të besuar.
+- Nëse serveri mbyllet, klientët shkëputen dhe duhet të rilidhen manualisht.
+
+---
+
+## Troubleshooting (Zgjidhje të Shpejta)
+
+- **Connection refused:** Verifiko që `server.py` po ekzekutohet dhe porta `5555` nuk është e zënë.
+- **Failed to decrypt message:** Mund të ketë pasur ndërprerje lidhjeje ose payload i pavlefshëm.
+- **Mesazhi nuk dërgohet:** Shkurto mesazhin dhe provo përsëri (RSA ka limit madhësie).
+- **Shkëputje e papritur:** Rinis klientin dhe rilidhu me serverin.
 
 ---
 

@@ -19,7 +19,7 @@ from rsa_utils import (
     generate_keys, serialize_public_key, load_public_key,
     encrypt_message, decrypt_message
 )
-from config import HOST, PORT, BUFFER_SIZE
+from config import HOST, PORT, BUFFER_SIZE, validate_config
 
 # Dictionary storing connected clients.
 # Maps connection object -> {"username": str, "public_key": RSA public key}
@@ -27,6 +27,18 @@ clients = {}
 
 # Lock for thread-safe access to the shared clients dictionary
 clients_lock = threading.Lock()
+
+
+def get_client_count():
+    """Return current number of connected clients."""
+    with clients_lock:
+        return len(clients)
+
+
+def get_connected_usernames():
+    """Return a snapshot list of connected usernames."""
+    with clients_lock:
+        return [info["username"] for info in clients.values()]
 
 
 def broadcast(sender_conn, message):
@@ -41,17 +53,33 @@ def broadcast(sender_conn, message):
     * `message (str)`: Mesazhi ne tekst te thjeshte qe do te enkriptohet dhe transmetohet.
 
     """
+    # Snapshot recipients under lock, then perform network I/O outside lock.
     with clients_lock:
-        for conn, client_info in list(clients.items()):
-            if conn != sender_conn:
-                try:
-                    # Encrypt the message with this specific client's public key
-                    encrypted = encrypt_message(client_info["public_key"], message)
-                    conn.send(encrypted)
-                except (ConnectionResetError, BrokenPipeError, OSError) as e:
-                    print(f"[ERROR] Failed to send to {client_info['username']}: {e}")
-                    conn.close()
+        recipients = [
+            (conn, info)
+            for conn, info in clients.items()
+            if conn != sender_conn
+        ]
+
+    stale_connections = []
+    for conn, client_info in recipients:
+        try:
+            # Encrypt the message with this specific client's public key
+            encrypted = encrypt_message(client_info["public_key"], message)
+            conn.send(encrypted)
+        except (ConnectionResetError, BrokenPipeError, OSError) as e:
+            print(f"[ERROR] Failed to send to {client_info['username']}: {e}")
+            stale_connections.append(conn)
+
+    if stale_connections:
+        with clients_lock:
+            for conn in stale_connections:
+                if conn in clients:
                     del clients[conn]
+                try:
+                    conn.close()
+                except OSError:
+                    pass
 
 
 def handle_client(conn, addr):
@@ -104,9 +132,11 @@ def handle_client(conn, addr):
                 "username": username,
                 "public_key": client_public_key
             }
+            active_clients = len(clients)
 
         print(f"[CONNECTED] {username} has joined the chat.")
         print(f"Ready to receive encrypted messages from {username}.")
+        print(f"[INFO] Active clients: {active_clients}")
 
         # Notify other clients that a new user has joined
         broadcast(conn, f">> {username} has joined the chat.")
@@ -138,6 +168,7 @@ def handle_client(conn, addr):
                 username = clients[conn]["username"]
                 del clients[conn]
                 print(f"[DISCONNECTED] {username} has left the chat.")
+                print(f"[INFO] Active clients: {len(clients)}")
         if 'username' in dir():
             broadcast(conn, f">> {username} has left the chat.")
 
@@ -151,12 +182,15 @@ def start_server():
     per secilin klient per te menaxhuar komunikimin paralel (*concurrent communication*).
 
     """
+    validate_config()
+
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((HOST, PORT))
     server.listen()
 
     print(f"Server started and listening for connections on {HOST}:{PORT}...")
+    print("[INFO] RSA-2048 OAEP supports short plaintext messages only (roughly under 190 bytes).")
     print("Waiting for clients to connect...\n")
 
     try:
